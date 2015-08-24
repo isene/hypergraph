@@ -1,0 +1,550 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+#
+# Description:  HyperList graphing tool.
+#		Graphing both State and Transition HyperLists
+#		Conforms to HyperList version 2.3
+# Author:	Geir Isene <g@isene.com>
+# Web_site:	http://isene.com/
+# HyperList:    http://isene.com/hyperlist/
+# License:	I release all copyright claims. 
+#		This code is in the public domain.
+#		Permission is granted to use, copy modify, distribute, and
+#		sell this software for any purpose. I make no guarantee
+#		about the suitability of this software for any purpose and
+#		I am not liable for any damages resulting from its use.
+#		Further, I am under no obligation to maintain or extend
+#		this software. It is provided on an 'as is' basis without
+#		any expressed or implied warranty.
+# Version:	2.5 - compatible with the HyperList definition v. 2.3
+# Modified:	2015-08-23
+# Changes:	Added input from STDIN
+#		Fixed bug with 'dir="none"'
+#		Minor bug fixes
+
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
+
+# Helptext {{{1
+def help 
+puts <<HELPTEXT
+  DESCRIPTION
+     This program converts a HyperList to a graph
+     A HyperList can be graphed as a State or as a Transition
+        A State graph is a hierarchical graph of the HyperList (similar to a MindMap)
+        A Transition graph is a sequential graph (similar to a Flow Chart)
+     See the manual for more information on Hyperlist <http://isene.me/hyperlist/>
+     Note that this program will not graph the most advanced HyperList features (yet)
+        Conditionals, Operators, Properties and Literals are (mostly) correctly graphed
+     This help file is in itself a valid HyperList
+  REQUIREMENTS
+     This program requires Ruby and Graphviz
+     For easy creation of HyperLists, use VIM with the HyperList plugin
+  SYNOPSIS 
+     hypergraph [OPTIONS] filename.hl
+  OPTIONS
+     HyperList type
+	-s, --state
+	   Treat the HyperList as a State, a hierarchy of items
+        -t, --trans
+	   Treat the HyperList as a Transition, sequence of actions
+     Chart directions
+        -d, --down
+           Top-to-bottom rendering (DEFAULT)
+        -u, --up
+           Bottom-to-top rendering
+        -l, --left
+           Left-to-right rendering
+        -r, right
+           Right-to-left rendering
+     Edge type
+        -a, --arrow
+           Use directional arrows (DEFAULT)
+        -n, --noarrow
+           Use non-directional lines (edges)
+     Graphics format
+        -f, --format [GRAPHICS FORMAT]
+	   Specify the graphics format used for the graph file; Possible formats:
+	      "png" (default), "jpg", "gif", "svg", "ps", "fig" (XFIG format)
+     Other options
+        -c, --clean
+	   Only convert the HyperList to a clean and strict HyperList
+	   + The program will always do this and save the "clean file",
+	    but with the -c option, the program exits after saving the file
+	-o, --overwrite
+	   Overwrite existing files (strict, dot and graph files)
+        -h, --help
+           Displays the help text
+        -v, --version
+           Displays the version number of hypergraph
+  COPYRIGHT
+     Copyright 2014, Geir Isene. Released under the GPL v. 3
+     See http://isene.com for more contributions by Geir Isene.
+HELPTEXT
+end
+
+# Requires {{{1
+require 'fileutils'
+require 'getoptlong'
+
+hypergraph_version = "0.5"
+
+# Options & arguments {{{1
+opts = GetoptLong.new(
+    [ "--clean",        "-c",   GetoptLong::NO_ARGUMENT ],
+    [ "--state",        "-s",   GetoptLong::NO_ARGUMENT ],
+    [ "--trans",        "-t",   GetoptLong::NO_ARGUMENT ],
+    [ "--down",		"-d",   GetoptLong::NO_ARGUMENT ],
+    [ "--up",		"-u",   GetoptLong::NO_ARGUMENT ],
+    [ "--left",		"-l",   GetoptLong::NO_ARGUMENT ],
+    [ "--right",        "-r",   GetoptLong::NO_ARGUMENT ],
+    [ "--arrow",	"-a",   GetoptLong::NO_ARGUMENT ],
+    [ "--noarrow",	"-n",   GetoptLong::NO_ARGUMENT ],
+    [ "--format",	"-f",   GetoptLong::REQUIRED_ARGUMENT ],
+    [ "--overwrite",	"-o",   GetoptLong::NO_ARGUMENT ],
+    [ "--help",         "-h",   GetoptLong::NO_ARGUMENT ],
+    [ "--version",      "-v",   GetoptLong::NO_ARGUMENT ]
+)
+
+# Set default values
+$rd = "TD"
+$a = true
+$type = "state"
+$clean = false
+$format = "png"
+$over = false
+
+# Parse the options
+opts.each do |opt, arg|
+  case opt
+    when "--clean"
+	$clean = true
+    when "--state"
+	$type = "state"
+    when "--trans"
+	$type = "trans"
+    when "--down"
+	$rd = "TB"
+    when "--up"
+	$rd = "BT"
+    when "--left"
+	$rd = "LR"
+    when "--right"
+	$rd = "RL"
+    when "--arrow"
+	$a = true
+    when "--noarrow"
+	$a = false
+    when "--format"
+	$format = arg.to_s
+    when "--overwrite"
+	$over = true
+    when "--help"
+      help
+      exit
+    when "--version"
+      puts "hypergraph version: " + hypergraph_version + "\n"
+      exit
+  end
+end
+
+
+# Functions {{{1
+#------------------#
+# Define functions #
+#------------------#
+
+# Extend the String Class with new methods {{{2
+class String
+    # Get the "level" of the item (i.e. number of tab characters in front)
+    def hlevel
+	return count("\t")
+    end
+    # Return the whole text of the item 
+    # (including tags but without Conditionals, Operators and References)
+    def htext
+	return gsub(/\t/, '').			# Remove tabs
+	    gsub(/\(<.+?>\)/, '').		# Remove soft links
+	    gsub(/<.+?>/, '').			# Remove hard links
+	    gsub(/(.+?:) /, '\1' + "\n").	# One Tag per line
+	    gsub("\"", "\'").			# Escape quotes
+	    sub(/^\s+/, '').			# Remove white spaces in front
+	    sub(/\s+$/, '').			# Remove white spaces at the end
+	    sub(/;$/, '')			# Remove trailing semicolon
+    end
+    # Return an array of the hard references in the item
+    # (remove soft links first)
+    def hrefs_h
+	return gsub(/\(<.+?>\)/, '').scan(/(?<=<).+?(?=>)/).flatten
+    end
+    # Return an array of the soft references in the item
+    def hrefs_s
+	return scan(/(?<=\(<).+?(?=>\))/).flatten
+    end
+    # Add one level (tab in front) of the item
+    def haddlevel
+	return "\t" + self
+    end
+end
+
+# Define a function to increment the children items of a parent {{{2
+def hpluss(i)
+    j = i + 1
+    begin
+	while $hlines[j].hlevel > $hlines[i].hlevel - 1
+	    $hlines[j] = $hlines[j].haddlevel
+	    j += 1
+	end
+    rescue
+    end
+end
+
+# Define a function to return the parent {{{2
+def hgetparent(i)
+    lvl = $hlines[i].hlevel
+    until i == -1
+	if $hlines[i].hlevel < lvl
+	    return i
+	end
+	i -= 1
+    end
+    return false
+end
+
+# Define a function to return previous sister {{{2
+def hgetsister(i)
+    lvl = $hlines[i].hlevel
+    i -= 1
+    until i == -1
+	if $hlines[i].hlevel == lvl
+	    return i
+	end
+	i -= 1
+    end
+    return false
+end
+
+# Define function to get next item that is one level up
+def hgetnextup(i)
+    lvl = $hlines[i].hlevel
+    i += 1
+    until i == $hlines.length - 1
+	if $hlines[i].hlevel < lvl
+	    return i
+	end
+	i += 1
+    end
+    return false
+end
+
+#Define function to write the "link from"-item {{{2
+def hmapfrom(i)
+    $dot += "\"#{i.to_s}\""
+    $dot += " -> "
+end
+
+#Define function to write the "link to"-item {{{2
+def hmapto(i)
+    $dot += "\"#{i.to_s}\""
+    if $type == "trans" and $hlines[i-1].htext.match(/\[.+?\]/)
+	$dot += "[ label=\"Yes\" ]"
+    end
+end
+
+# Function to get the file name to save (and not overwrite) {{{2
+def save_name(base,ext)
+    filename = base + ext
+    if File.exist?(filename)
+	base += "_1"
+	filename = base + ext
+	while File.exist?(base + ext)
+	    base = base.chop + (base[-1].to_i + 1).to_s
+	    filename = base + ext
+	end
+    end
+    return filename
+end
+
+
+# Main program {{{1
+#------------------#
+# Start of program #
+#------------------#
+
+flname = ARGV[0]
+hl = ARGF.read
+
+# Get the base name and extension of the HyperList file or create if STDIN
+if flname
+    extname = File.extname(flname)
+    basename = File.basename(flname,extname)
+else
+    extname = ".hl"
+    basename = "hypergraph"
+end
+
+# Split the HyperList file into an array, one line per array element
+$hlines = hl.split("\n")
+
+# Clean (strictify) {{{2
+#------------------------------------#
+# Clean/"strictify" up the HyperList #
+#------------------------------------#
+# Split the item SEPARATOR+OPERATOR to make the HyperList stricter
+$hlines.collect.with_index do |l,i| 
+    if l.match(/; [A-ZÆØÅ]+: *$/) 
+	l.gsub!("; ", "\n" + "\t"*(l.hlevel+1))
+	$hlines[i] = l.split("\n")
+	$hlines.flatten!
+	hpluss(i+1)
+    end
+    l
+end
+# Split the CONDITIONALS to make the HyperList stricter
+$hlines.collect.with_index do |l,i| 
+    if l.match(/\[.+?\] /) 
+	l.gsub!(/(\[.+?\]) /, '\1' + "\n" + "\t"*(l.hlevel+1))
+	$hlines[i] = l.split("\n")
+	$hlines.flatten!
+	hpluss(i+1)
+    end
+    l
+end
+# Split the SEPARATORS to make the HyperList stricter
+$hlines.collect.with_index do |l,i| 
+    if l.match("; ") 
+	l.gsub!("; ", "\n" + "\t"*(l.hlevel+1))
+	$hlines[i] = l.split("\n")
+	$hlines.flatten!
+    end
+    l
+end
+# Handle LITERALS
+flag0 = false
+for i in 0..$hlines.length - 1
+    if $hlines[i].match(/^\t+\\\s*$/) 
+	flag0 == false ? flag0 = true : flag0 = false
+	if flag0 == true
+	    lit = $hlines[i] + "\n"
+	    $hlines[i] = nil
+	else
+	    $hlines[i] = lit + $hlines[i]
+	end
+	next
+    end
+    if flag0 == true
+	lit += $hlines[i] + "\n"
+	$hlines[i] = nil
+    end
+end
+$hlines.compact!
+
+# Save the "strictified" Hyperlist (if it differs from the original file)
+if $over == false
+    strictfile = save_name(basename + "_strict", extname)
+else
+    strictfile = basename + "_strict" + extname
+end
+hlstrict = $hlines.join("\n")
+if hlstrict != hl
+    begin
+        File.write(strictfile, hlstrict)
+	puts "Clean/strict HyperList file written: #{strictfile}"
+    rescue
+	puts "Error! No Clean/strict HyperList file written."
+    end
+    exit if $clean == true 
+else
+    puts "HyperList file already clean/strict, no clean/strict file written."
+end
+
+# Make Literals start and end with "-----" (cleaner and prettier in graphs)
+# Also remove tabs inside a Literal block
+for i in 0..$hlines.length - 1
+    $hlines[i].gsub!("\\", "-----")
+    # Fix hlevel for Literals (remove all tabs after the first level)
+    if $hlines[i].match("-----")
+	$hlines[i] = $hlines[i].split(/\n\t+/).join("\n")
+    end
+end
+
+# Construct the top of the dot-file {{{2
+$dot = <<DOTSTART
+digraph #{basename} {
+rankdir=#{$rd}
+splines=true
+overlap=false
+edge [ fontsize=8 len=1 ]
+fixedsize=true
+DOTSTART
+
+$dot += "edge [dir=\"none\"]\n" if not $a
+$dot += "node [shape=box]\n" if $type == "trans"
+$dot += "\n"
+
+# List the items with the labels (the relevant part of the line) {{{2
+i = 0
+$hlines.each do |l|
+    if l.htext.empty? 
+	$dot += "\"#{i.to_s}\" [width = 0.2 height = 0.2 label = <<FONT POINT-SIZE=\"10\">(#{i.to_s})</FONT>>]\n"
+    else
+	if l.htext.match(/[A-Z]+:/)
+	    $dot += "\"#{i.to_s}\" [shape=doubleoctagon width = 0.2 height = 0.2 label = <<FONT POINT-SIZE=\"10\">#{l.htext}</FONT>>]\n"
+	else
+	    $dot += "\"#{i.to_s}\" [label = \"#{l.htext}\""
+	    $dot += ", shape=diamond" if l.htext.match(/\[.+?\]/)
+	    $dot += ", shape=tab" if l.htext.match("-----")
+	    $dot += "]\n"
+	end
+    end
+    i += 1
+end
+$dot += "\n"
+
+# STATE {{{1
+#------------------------------#
+# Map the HyperList as a State #
+#------------------------------#
+if $type == "state" 
+    for i in 0..$hlines.length - 1
+	j = i + 1
+	begin
+	    until $hlines[j].hlevel == $hlines[i].hlevel
+		if $hlines[j].hlevel - $hlines[i].hlevel == 1
+		    # Map from
+		    hmapfrom(i)
+		    # Map to
+		    hmapto(j)
+		    # Map the ORs
+		    if $hlines[i].include?("OR:")
+			$dot += " [style=\"dashed\" color=\"black:black\"]"
+		    # Map the ANDs
+		    elsif $hlines[i].include?("AND:")
+			$dot += " [color=\"black:black\"]"
+		    end
+		    $dot += "\n"
+		end
+		j += 1
+	    end
+	rescue
+	end
+	# Map hard references
+	$hlines[i].hrefs_h.each do |r_h|
+	    hmapfrom(i)
+	    $dot += "\"#{$hlines.index{|s| s =~ /#{r_h}/}}\""
+	    $dot += "\n"
+	end
+	# Map soft references
+	$hlines[i].hrefs_s.each do |r_s|
+	    hmapfrom(i)
+	    $dot += "\"#{$hlines.index{|s| s =~ /#{r_s}/}}\" [style=\"dotted\"]"
+	    $dot += "\n"
+	end
+	i += 1
+    end
+# TRANS {{{1
+#-----------------------------------#
+# Map the HyperList as a Transition #
+#-----------------------------------#
+elsif $type == "trans" 
+    for i in 0..$hlines.length - 2
+	# Jump to next if current Item is an operator
+	# If parent is an Operator, link in a special way
+	if hgetparent(i)
+	    par = $hlines[hgetparent(i)].htext 
+	    if par.match(/[A-Z]+:/) 
+		hmapfrom(hgetparent(i))
+		hmapto(i)
+		if par.match(/OR:/) 
+		    $dot += " [style=\"dashed\" color=\"black:black\"]"
+		elsif par.match(/AND:/) 
+		    $dot += " [color=\"black:black\"]"
+		end
+		$dot += "\n"
+	    end
+	end
+	next if $hlines[i].htext.match(/[A-Z]+:/) and $hlines[i+1].hlevel > $hlines[i].hlevel
+	# Map soft links
+	$hlines[i].hrefs_s.each do |r_s|
+	    # Link the soft ref if any
+	    hmapfrom(i)
+	    $dot += "\"#{$hlines.index{|s| s =~ /#{r_s}/}}\" [style=\"dotted\"]"
+	    $dot += "\n"
+	end
+	# Link to next item outside current OP
+	parnext = $hlines[hgetparent(i+1)].htext
+	if parnext.match(/[A-Z]+:/) and $hlines[i+1].hlevel <= $hlines[i].hlevel and hgetnextup(i)
+	    hmapfrom(i)
+	    hmapto(hgetnextup(i+1))
+	    $dot += "\n"
+	    next
+	end
+	# Check if previous sister is a Conditional.
+	# Link to this item if it is
+	if hgetsister(i)
+	    sis = $hlines[hgetsister(i)].htext
+	    if sis.match(/\[.+?\]/)
+		hmapfrom(hgetsister(i))
+		hmapto(i)
+		$dot += " [ label=\"No\" ]"
+		$dot += "\n"
+	    end
+	end
+	# Start normal mapping
+	# Normal mapping from/to
+	if $hlines[i].hrefs_h == []
+	    hmapfrom(i)
+	    hmapto(i+1)
+	    $dot += "\n"
+	# Special mapping if there are hard links
+	else
+	    # Link to ref
+	    $hlines[i].hrefs_h.each do |r_h|
+		hmapfrom(i)
+		$dot += "\"#{$hlines.index{|s| s =~ /#{r_h}/}}\""
+		$dot += "\n"
+	    end
+	end
+    end
+end
+
+# Close the dot file
+$dot += "}"
+
+# Escape hash signs (#)
+$dot.gsub!("#", '\\\\#')
+
+# Get double quotes back
+$dot.gsub!("'", '\"')
+
+# Save and graph {{{1
+#-----------------------------#
+# Save and convert to a graph #
+#-----------------------------#
+# Save the file, add incremented number if file already exists
+if $over == false
+    dotfile = save_name(basename, ".dot")
+else
+    dotfile = basename + ".dot"
+end
+begin
+    File.write(dotfile, $dot)
+    puts "DOT file written: " + dotfile
+rescue
+    puts "Error! No DOT file written."
+end
+
+# Generate graph
+if $over == false
+    graphfile = save_name(basename, "." + $format)
+else
+    graphfile = basename + "." + $format
+end
+begin
+    `dot -T#{$format} #{dotfile} -o #{graphfile}`
+    puts "Graph file written: " + graphfile
+rescue
+    puts "Error! No graph file file written."
+end
+
+# vim: foldmethod=marker
