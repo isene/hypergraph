@@ -544,7 +544,7 @@ begin
     `dot -T#{$format} #{dotfile} -o #{graphfile}`
     puts "Graph file written: " + graphfile
 rescue
-    puts "Error! No graph file file written."
+    puts "Error! No graph file written."
 end
 
 # vim: foldmethod=marker

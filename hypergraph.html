@@ -1,0 +1,79 @@
+<html>
+<head>
+<title>HyperGraph</title>
+</head>
+
+<body bgcolor="#FFFFFF" text="#000000">
+
+<table width="600" border="1" cellspacing="0" cellpadding="2" align="center">
+  <tr>
+    <td colspan="2"><center><h2>HyperGraph</h2></center></td>
+  </tr>
+  <form  name="requestForm" enctype="multipart/form-data" action="cgi-bin/hg_upload.rb" method="POST">
+  <tr>
+    <td width="300" align="right" bgcolor="#CCCCCC"><b>State or Transition?</b></td>
+    <td width="300">
+      <select name="state">
+	<option>State
+	<option>Transition
+      </select>
+    </td>
+  </tr>
+  <tr>
+    <td width="300" align="right" bgcolor="#CCCCCC"><b>Graph direction</b></td>
+    <td width="300">
+      <select name="direction">
+	<option>Down
+	<option>Right
+	<option>Up
+	<option>Left
+      </select>
+    </td>
+  </tr>
+    <td width="300" align="right" bgcolor="#CCCCCC"><b>Arrows?</b></td>
+    <td width="300">
+      <select name="arrow">
+	<option>Arrows
+	<option>No arrows
+      </select>
+    </td>
+  </tr>
+  <tr>
+    <td width="300" align="right"><input type="FILE" name="upfile" value="browse"></td>
+    <td width="300"><input type="SUBMIT" name="submit" value="Upload"></td>
+  </tr>
+  </form>
+  <tr>
+    <td colspan="2">
+      <p><br /><center><h3>Notes on the usage of HyperGraph</h3></center></p>
+      <p>This program creates a graphical representation of a <a
+	  href="http://isene.me/hyperlist/">HyperList</a>. A HyperList
+      can be used to describe anything – any state or any transition -
+      from a todo or shopping list to organizational structures, project
+      plans, business processes or complex logic structures. It represents
+      data in tree-structure lists with a very rich set of
+      features. This online tool will graph your HyperList either as a
+      flow (transition) or as a description of something (state), with or
+      without arrows pointing from/to elements and in the direction you
+      choose. Choose how you want your graph, choose a HyperList file from your
+      PC and press "Upload" to see the resulting graph. Here is a dummy
+      HyperList and the resulting graph:</p>
+      <p>
+      <pre>
+	<b>First Item</b>
+	Second Item; OR: 
+	    Third Item
+	    Fourth Item
+	Fifth Item
+	[? Item=Cool] Sixth Item (&ltSecond Item&gt)
+	Seventh Item
+	Eighth Item
+      </pre>
+      </p>
+      <p><img src="/images/hg_state.png" /></p>
+    </td>
+  </tr>
+</table>
+<p><center><small>This program is licensed under GPL3 Copyright 2015, Geir Isene.</small></center></p>
+</body>
+</html>
