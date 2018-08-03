@@ -94,14 +94,14 @@ opts = GetoptLong.new(
     [ "--clean",        "-c",   GetoptLong::NO_ARGUMENT ],
     [ "--state",        "-s",   GetoptLong::NO_ARGUMENT ],
     [ "--trans",        "-t",   GetoptLong::NO_ARGUMENT ],
-    [ "--down",		"-d",   GetoptLong::NO_ARGUMENT ],
-    [ "--up",		"-u",   GetoptLong::NO_ARGUMENT ],
-    [ "--left",		"-l",   GetoptLong::NO_ARGUMENT ],
+    [ "--down",					"-d",   GetoptLong::NO_ARGUMENT ],
+    [ "--up",						"-u",   GetoptLong::NO_ARGUMENT ],
+    [ "--left",					"-l",   GetoptLong::NO_ARGUMENT ],
     [ "--right",        "-r",   GetoptLong::NO_ARGUMENT ],
-    [ "--arrow",	"-a",   GetoptLong::NO_ARGUMENT ],
-    [ "--noarrow",	"-n",   GetoptLong::NO_ARGUMENT ],
-    [ "--format",	"-f",   GetoptLong::REQUIRED_ARGUMENT ],
-    [ "--overwrite",	"-o",   GetoptLong::NO_ARGUMENT ],
+    [ "--arrow",				"-a",   GetoptLong::NO_ARGUMENT ],
+    [ "--noarrow",			"-n",   GetoptLong::NO_ARGUMENT ],
+    [ "--format",				"-f",   GetoptLong::REQUIRED_ARGUMENT ],
+    [ "--overwrite",		"-o",   GetoptLong::NO_ARGUMENT ],
     [ "--help",         "-h",   GetoptLong::NO_ARGUMENT ],
     [ "--version",      "-v",   GetoptLong::NO_ARGUMENT ]
 )
@@ -273,6 +273,8 @@ end
 
 flname = ARGV[0]
 hl = ARGF.read
+# Remove empty lines
+hl.gsub!(/^$\n/, '')
 
 # Get the base name and extension of the HyperList file or create if STDIN
 if flname
