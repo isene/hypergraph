@@ -1,0 +1,21 @@
+Level1
+	[? Whatever]
+		Level6
+			OR: 
+				"Level7"
+				Level8
+					Test
+				AND: 
+					Level9
+					Level10
+	Level2
+		[? POS]
+			Over: Level3
+		Level4 <Level2> (<Level1>)
+		<Level3>
+	Level5
+		\
+		Code1
+		Code2
+		Code3
+		\
