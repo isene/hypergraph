@@ -5,4 +5,4 @@ This program creates a graphical representation of a HyperList. A HyperList can 
 
 For more information on HyperList, see http://isene.me/hyperlist/
 
-For an online version of Hypergraph, see http://isene.org/
+For an online version of Hypergraph, go to: https://isene.com/hypergraph.html
