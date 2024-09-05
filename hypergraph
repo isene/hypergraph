@@ -163,14 +163,14 @@ class String
   # Return the whole text of the item 
   # (including tags but without Conditionals, Operators and References)
   def htext
-	  return gsub(/\t/, '').			# Remove tabs
-	    gsub(/\(<.+?>\)/, '').		# Remove soft links
-	    gsub(/<.+?>/, '').			# Remove hard links
+	  return gsub(/\t/, '').			    # Remove tabs
+	    gsub(/\(<.+?>\)/, '').		    # Remove soft links
+	    gsub(/<.+?>/, '').			      # Remove hard links
 	    gsub(/(.+?:) /, '\1' + "\n").	# One Tag per line
-	    gsub("\"", "\'").			# Escape quotes
-	    sub(/^\s+/, '').			# Remove white spaces in front
-	    sub(/\s+$/, '').			# Remove white spaces at the end
-	    sub(/;$/, '')			# Remove trailing semicolon
+	    gsub("\"", "\'").			        # Escape quotes
+	    sub(/^\s+/, '').			        # Remove white spaces in front
+	    sub(/\s+$/, '').			        # Remove white spaces at the end
+	    sub(/;$/, '')			            # Remove trailing semicolon
   end
   # Return an array of the hard references in the item
   # (remove soft links first)
@@ -389,7 +389,7 @@ $dot += "\n"
 i = 0
 $hlines.each do |l|
   if l.htext.empty? 
-	  $dot += "\"#{i.to_s}\" [width = 0.2 height = 0.2 label = <<FONT POINT-SIZE=\"10\">(#{i.to_s})</FONT>>]\n"
+	  #$dot += "\"#{i.to_s}\" [width = 0.2 height = 0.2 label = <<FONT POINT-SIZE=\"10\">(#{i.to_s})</FONT>>]\n"
   else
     if l.htext.match(/[A-Z]+:/)
       $dot += "\"#{i.to_s}\" [shape=doubleoctagon width = 0.2 height = 0.2 label = <<FONT POINT-SIZE=\"10\">#{l.htext}</FONT>>]\n"
@@ -414,10 +414,11 @@ if $type == "state"
     begin
       until $hlines[j].hlevel == $hlines[i].hlevel
         if $hlines[j].hlevel - $hlines[i].hlevel == 1
-          # Map from
-          hmapfrom(i)
-          # Map to
-          hmapto(j)
+          unless $hlines[j].htext.empty?
+            # Map from and to
+            hmapfrom(i)
+            hmapto(j)
+          end
           # Map the ORs
           if $hlines[i].include?("OR:")
             $dot += " [style=\"dashed\" color=\"black:black\"]"
@@ -433,8 +434,8 @@ if $type == "state"
     end
 	  # Map hard references
 	  $hlines[i].hrefs_h.each do |r_h|
-      hmapfrom(i)
-      $dot += "\"#{$hlines.index{|s| s =~ /#{r_h}/}}\""
+      hmapfrom(hgetparent(i))
+      $dot += "\"#{$hlines.index{|s| s =~ /[^<]#{r_h}/}}\" [style=\"dashed\"]"
       $dot += "\n"
     end
     # Map soft references
