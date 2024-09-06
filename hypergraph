@@ -16,11 +16,11 @@
 #		Further, I am under no obligation to maintain or extend
 #		this software. It is provided on an 'as is' basis without
 #		any expressed or implied warranty.
-# Version:	2.5 - compatible with the HyperList definition v. 2.3
-# Modified:	2015-08-23
-# Changes:	Added input from STDIN
-#		Fixed bug with 'dir="none"'
-#		Minor bug fixes
+# Version:	2.5.3 - compatible with the HyperList definition v. 2.5
+# Modified:	2024-09-06
+# Changes:	Better handling of links with State HyperLists
+#		        Added color (edge, fill and font)
+#		        Minor fixes
 
 Encoding.default_external = Encoding::UTF_8
 Encoding.default_internal = Encoding::UTF_8
@@ -161,7 +161,7 @@ class String
 	  return count("\t")
   end
   # Return the whole text of the item 
-  # (including tags but without Conditionals, Operators and References)
+  # (including Properties but without Conditionals, Operators and References)
   def htext
 	  return gsub(/\t/, '').			    # Remove tabs
 	    gsub(/\(<.+?>\)/, '').		    # Remove soft links
@@ -394,9 +394,22 @@ $hlines.each do |l|
     if l.htext.match(/[A-Z]+:/)
       $dot += "\"#{i.to_s}\" [shape=doubleoctagon width = 0.2 height = 0.2 label = <<FONT POINT-SIZE=\"10\">#{l.htext}</FONT>>]\n"
     else
+      cl  = l.htext.scan(/\(color=.*?\)/)[0].to_s
+      l.sub!(cl, "")
+      cl = cl[1...-1].to_s
+      cf  = l.htext.scan(/\(fillcolor=.*?\)/)[0].to_s
+      l.sub!(cf, "")
+      cf = cf[1...-1].to_s
+      cf  = cf + ", style=filled" unless cf == ""
+      ct  = l.htext.scan(/\(fontcolor=.*?\)/)[0].to_s
+      l.sub!(ct, "")
+      ct = ct[1...-1].to_s
       $dot += "\"#{i.to_s}\" [label = \"#{l.htext}\""
       $dot += ", shape=diamond" if l.htext.match(/\[.+?\]/)
       $dot += ", shape=tab" if l.htext.match("-----")
+      $dot += ", #{cl}" unless cl == ""
+      $dot += ", #{cf}" unless cf == ""
+      $dot += ", #{ct}" unless ct == ""
       $dot += "]\n"
     end
   end
