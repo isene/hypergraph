@@ -62,6 +62,13 @@ puts <<HELPTEXT
         Use directional arrows (DEFAULT)
       -n, --noarrow
         Use non-directional lines (edges)
+      -o, --ortho
+        Use angled lines
+      -p, --poly
+        Use straight lines
+    Separation
+      -e, --sep
+        Set node and rank separation to the value supplied
     Graphics format
       -f, --format [GRAPHICS FORMAT]
     Specify the graphics format used for the graph file; Possible formats:
@@ -71,14 +78,14 @@ puts <<HELPTEXT
         Only convert the HyperList to a clean and strict HyperList
           + The program will always do this and save the "clean file",
           but with the -c option, the program exits after saving the file
-	    -o, --overwrite
+	    -O, --overwrite
 	      Overwrite existing files (strict, dot and graph files)
       -h, --help
         Displays the help text
       -v, --version
         Displays the version number of hypergraph
   COPYRIGHT
-     Copyright 2014, Geir Isene. Released under the GPL v. 3
+     Copyright 2014-2024, Geir Isene. Released under the GPL v. 3
      See http://isene.com for more contributions by Geir Isene.
 HELPTEXT
 end
@@ -100,45 +107,56 @@ opts = GetoptLong.new(
     [ "--right",        "-r",   GetoptLong::NO_ARGUMENT ],
     [ "--arrow",				"-a",   GetoptLong::NO_ARGUMENT ],
     [ "--noarrow",			"-n",   GetoptLong::NO_ARGUMENT ],
+    [ "--ortho",  			"-o",   GetoptLong::NO_ARGUMENT ],
+    [ "--poly", 		    "-p",   GetoptLong::NO_ARGUMENT ],
+    [ "--sep",  		    "-e",   GetoptLong::REQUIRED_ARGUMENT ],
     [ "--format",				"-f",   GetoptLong::REQUIRED_ARGUMENT ],
-    [ "--overwrite",		"-o",   GetoptLong::NO_ARGUMENT ],
+    [ "--overwrite",		"-O",   GetoptLong::NO_ARGUMENT ],
     [ "--help",         "-h",   GetoptLong::NO_ARGUMENT ],
     [ "--version",      "-v",   GetoptLong::NO_ARGUMENT ]
 )
 
 # Set default values
-$rd = "TD"
-$a = true
-$type = "state"
-$clean = false
-$format = "png"
-$over = false
+$rd       = "TD"
+$arrow    = true
+$spline   = "spline"
+$type     = "state"
+$clean    = false
+$format   = "png"
+$over     = false
+$sep      = false
 
 # Parse the options
 opts.each do |opt, arg|
   case opt
     when "--clean"
-	$clean = true
+	    $clean  = true
     when "--state"
-	$type = "state"
+	    $type   = "state"
     when "--trans"
-	$type = "trans"
+	    $type   = "trans"
     when "--down"
-	$rd = "TB"
+	    $rd     = "TB"
     when "--up"
-	$rd = "BT"
+	    $rd     = "BT"
     when "--left"
-	$rd = "LR"
+	    $rd     = "LR"
     when "--right"
-	$rd = "RL"
+	    $rd     = "RL"
     when "--arrow"
-	$a = true
+	    $arrow  = true
     when "--noarrow"
-	$a = false
+	    $arrow  = false
+    when "--ortho"
+      $spline = "ortho"
+    when "--poly"
+      $spline = "polyline"
+    when "--sep"
+      $sep = arg.to_s
     when "--format"
-	$format = arg.to_s
+	    $format = arg.to_s
     when "--overwrite"
-	$over = true
+	    $over   = true
     when "--help"
       help
       exit
@@ -375,13 +393,15 @@ end
 $dot = <<DOTSTART
 digraph #{basename} {
 rankdir=#{$rd}
-splines=true
+splines=#{$spline}
+nodesep=#{$sep}
+ranksep=#{$sep}
 overlap=false
 edge [ fontsize=8 len=1 ]
 fixedsize=true
 DOTSTART
 
-$dot += "edge [dir=\"none\"]\n" if not $a
+$dot += "edge [dir=\"none\"]\n" if not $arrow
 $dot += "node [shape=box]\n" if $type == "trans"
 $dot += "\n"
 
