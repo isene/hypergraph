@@ -1,0 +1,7 @@
+Support Flow
+	Receive inquiry
+	[Email] Handle via email system
+	[Phone] Handle via phone system
+	[Chat] Handle via chat system
+	Process the request
+	Close ticket

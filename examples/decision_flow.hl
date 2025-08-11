@@ -1,0 +1,29 @@
+Customer Support Process
+	Receive customer inquiry
+	[Email] Log ticket in system
+	[Phone] AND:
+		Log ticket in system  
+		Note urgency level
+	[Chat] Create real-time ticket
+	Categorize issue
+		[Technical] Route to Tech Support
+			[Hardware issue] OR:
+				Schedule on-site visit
+				Ship replacement part
+				Provide DIY fix instructions
+			[Software issue] AND:
+				Remote diagnosis
+				Apply fix or patch
+				Document solution
+		[Billing] Route to Billing Department
+			Verify account status
+			[Payment issue] Process payment
+			[Refund request] Evaluate and process
+		[General inquiry] Provide information
+			Update knowledge base if new
+	Follow up with customer
+		[Resolved] Close ticket
+		[Not resolved] Escalate to supervisor
+			Create escalation report
+			Schedule review meeting
+	Update metrics dashboard

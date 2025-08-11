@@ -1,0 +1,16 @@
+Walk the dog
+	Check the weather
+		[Rain] AND/OR:
+			Get rain coat
+			Get umbrella
+		Dress for the temperature
+	Get chain
+	Call the dog
+	OR: 
+		Go through the woods
+		Walk the usual track
+	AND: (concurrency)
+		Ensure the dog has done its "tasks"
+		Ensure the dog is exercised
+			[5+] throw the favorite stick
+	Walk home

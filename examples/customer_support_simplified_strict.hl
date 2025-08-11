@@ -1,0 +1,30 @@
+Customer Support Process
+	Receive customer inquiry
+	Determine channel type
+		OR: 
+			[Email] Log email ticket
+			[Phone] Log phone ticket with urgency
+			[Chat] Create real-time ticket
+	Categorize issue type
+		OR: 
+			[Technical] Route to Tech Support
+			[Billing] Route to Billing Department
+			[General] Provide information directly
+	[Technical] Handle technical issue
+		[Hardware] OR:
+			Schedule on-site visit
+			Ship replacement part
+			Provide DIY instructions
+		[Software] AND:
+			Remote diagnosis
+			Apply fix or patch
+			Document solution
+	[Billing] Handle billing issue
+		Verify account status
+		OR: 
+			[Payment issue] Process payment
+			[Refund request] Evaluate and process
+	Follow up with customer
+		[Resolved] Close ticket
+		[Not resolved] Escalate to supervisor
+	Update metrics dashboard

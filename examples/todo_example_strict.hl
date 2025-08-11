@@ -1,0 +1,24 @@
+Project: Website Redesign (color=blue) (fillcolor=lightblue) (fontcolor=black)
+	[_] Planning Phase (color=orange)
+		[x] 2024-12-15: Gather requirements
+		[x] 2024-12-20: Create wireframes
+		[O] Design mockups #design
+		[_] Get stakeholder approval
+	[_] Development Phase (color=green)
+		[_] Frontend Development
+			[_] Implement responsive layout
+			[_] Add animations #css
+			[_] Cross-browser testing
+		[_] Backend Integration
+			[_] API endpoints
+			[_] Database migration
+			[_] Authentication system
+	[_] Testing & Deployment (color=red)
+		[_] QA Testing
+			[_] Unit tests
+			[_] Integration tests
+			[_] User acceptance testing
+		[_] Deployment
+			[_] Stage environment
+			[_] Production deployment
+			[_] Monitor performance #monitoring

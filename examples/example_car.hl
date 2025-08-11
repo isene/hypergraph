@@ -1,0 +1,16 @@
+Car (example obviously not complete)
+	Exterior
+		Paint
+		Chrome decor
+		Windows
+		Rubber linings
+		[4] Wheels
+	Interior
+		Seats
+			[2] Front
+			[3] Back
+	Mechanics
+		Motor
+			[6] Cylinders
+			[24] Valves
+		Brakes

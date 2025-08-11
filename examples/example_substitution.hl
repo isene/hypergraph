@@ -1,0 +1,6 @@
+Recipe Process
+	[ingredient = flour, sugar, eggs] Prepare {ingredient}
+		Measure {ingredient}
+		Add {ingredient} to bowl
+	Mix all ingredients
+	Bake at 350°F

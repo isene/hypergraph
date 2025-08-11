@@ -1,588 +1,466 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 #
-# Description:  HyperList graphing tool.
-#		Graphing both State and Transition HyperLists
-#		Conforms to HyperList version 2.3
-# Author:	Geir Isene <g@isene.com>
-# Web_site:	http://isene.com/
-# HyperList:    http://isene.com/hyperlist/
-# License:	I release all copyright claims. 
-#		This code is in the public domain.
-#		Permission is granted to use, copy modify, distribute, and
-#		sell this software for any purpose. I make no guarantee
-#		about the suitability of this software for any purpose and
-#		I am not liable for any damages resulting from its use.
-#		Further, I am under no obligation to maintain or extend
-#		this software. It is provided on an 'as is' basis without
-#		any expressed or implied warranty.
-# Version:	2.5.3 - compatible with the HyperList definition v. 2.5
-# Modified:	2024-09-06
-# Changes:	Better handling of links with State HyperLists
-#		        Added color (edge, fill and font)
-#		        Minor fixes
+# HyperGraph v2.0 - Enhanced HyperList graphing tool
+# Author: Geir Isene <g@isene.com>
+# Enhanced version with modular architecture and new features
 
-Encoding.default_external = Encoding::UTF_8
-Encoding.default_internal = Encoding::UTF_8
-
-# Helptext {{{1
-def help 
-puts <<HELPTEXT
-  DESCRIPTION
-     This program converts a HyperList to a graph
-     A HyperList can be graphed as a State or as a Transition
-        A State graph is a hierarchical graph of the HyperList (similar to a MindMap)
-        A Transition graph is a sequential graph (similar to a Flow Chart)
-     See the manual for more information on Hyperlist <http://isene.me/hyperlist/>
-     Note that this program will not graph the most advanced HyperList features (yet)
-        Conditionals, Operators, Properties and Literals are (mostly) correctly graphed
-     This help file is in itself a valid HyperList
-  REQUIREMENTS
-     This program requires Ruby and Graphviz
-     For easy creation of HyperLists, use VIM with the HyperList plugin
-  SYNOPSIS 
-    hypergraph [OPTIONS] filename.hl
-  OPTIONS
-    HyperList type
-      -s, --state
-	      Treat the HyperList as a State, a hierarchy of items
-      -t, --trans
-	      Treat the HyperList as a Transition, sequence of actions
-    Chart directions
-      -d, --down
-        Top-to-bottom rendering (DEFAULT)
-      -u, --up
-        Bottom-to-top rendering
-      -l, --left
-        Left-to-right rendering
-      -r, right
-        Right-to-left rendering
-    Edge type
-      -a, --arrow
-        Use directional arrows (DEFAULT)
-      -n, --noarrow
-        Use non-directional lines (edges)
-      -o, --ortho
-        Use angled lines
-      -p, --poly
-        Use straight lines
-    Separation
-      -e, --sep
-        Set node and rank separation to the value supplied
-    Graphics format
-      -f, --format [GRAPHICS FORMAT]
-    Specify the graphics format used for the graph file; Possible formats:
-      "png" (default), "jpg", "gif", "svg", "ps", "fig" (XFIG format)
-    Other options
-      -c, --clean
-        Only convert the HyperList to a clean and strict HyperList
-          + The program will always do this and save the "clean file",
-          but with the -c option, the program exits after saving the file
-	    -O, --overwrite
-	      Overwrite existing files (strict, dot and graph files)
-      -h, --help
-        Displays the help text
-      -v, --version
-        Displays the version number of hypergraph
-  COPYRIGHT
-     Copyright 2014-2024, Geir Isene. Released under the GPL v. 3
-     See http://isene.com for more contributions by Geir Isene.
-HELPTEXT
-end
-
-# Requires {{{1
 require 'fileutils'
 require 'getoptlong'
+require 'json'
+require 'pathname'
 
-hypergraph_version = "0.5"
+# Add lib directory to load path
+lib_path = File.expand_path('../lib', __FILE__)
+$LOAD_PATH.unshift(lib_path) unless $LOAD_PATH.include?(lib_path)
 
-# Options & arguments {{{1
-opts = GetoptLong.new(
-    [ "--clean",        "-c",   GetoptLong::NO_ARGUMENT ],
-    [ "--state",        "-s",   GetoptLong::NO_ARGUMENT ],
-    [ "--trans",        "-t",   GetoptLong::NO_ARGUMENT ],
-    [ "--down",					"-d",   GetoptLong::NO_ARGUMENT ],
-    [ "--up",						"-u",   GetoptLong::NO_ARGUMENT ],
-    [ "--left",					"-l",   GetoptLong::NO_ARGUMENT ],
-    [ "--right",        "-r",   GetoptLong::NO_ARGUMENT ],
-    [ "--arrow",				"-a",   GetoptLong::NO_ARGUMENT ],
-    [ "--noarrow",			"-n",   GetoptLong::NO_ARGUMENT ],
-    [ "--ortho",  			"-o",   GetoptLong::NO_ARGUMENT ],
-    [ "--poly", 		    "-p",   GetoptLong::NO_ARGUMENT ],
-    [ "--sep",  		    "-e",   GetoptLong::REQUIRED_ARGUMENT ],
-    [ "--format",				"-f",   GetoptLong::REQUIRED_ARGUMENT ],
-    [ "--overwrite",		"-O",   GetoptLong::NO_ARGUMENT ],
-    [ "--help",         "-h",   GetoptLong::NO_ARGUMENT ],
-    [ "--version",      "-v",   GetoptLong::NO_ARGUMENT ]
-)
+require_relative 'lib/hypergraph/parser'
+require_relative 'lib/hypergraph/graph_generator'
 
-# Set default values
-$rd       = "TD"
-$arrow    = true
-$spline   = "spline"
-$type     = "state"
-$clean    = false
-$format   = "png"
-$over     = false
-$sep      = false
+VERSION = "2.0.0"
 
-# Parse the options
-opts.each do |opt, arg|
-  case opt
-    when "--clean"
-	    $clean  = true
-    when "--state"
-	    $type   = "state"
-    when "--trans"
-	    $type   = "trans"
-    when "--down"
-	    $rd     = "TB"
-    when "--up"
-	    $rd     = "BT"
-    when "--left"
-	    $rd     = "LR"
-    when "--right"
-	    $rd     = "RL"
-    when "--arrow"
-	    $arrow  = true
-    when "--noarrow"
-	    $arrow  = false
-    when "--ortho"
-      $spline = "ortho"
-    when "--poly"
-      $spline = "polyline"
-    when "--sep"
-      $sep = arg.to_s
-    when "--format"
-	    $format = arg.to_s
-    when "--overwrite"
-	    $over   = true
-    when "--help"
-      help
-      exit
-    when "--version"
-      puts "hypergraph version: " + hypergraph_version + "\n"
-      exit
+class HyperGraphCLI
+  def initialize
+    @options = load_defaults
+    @config_file = File.expand_path('~/.hypergraphrc')
+    load_config if File.exist?(@config_file)
   end
-end
 
-
-# Functions {{{1
-#------------------#
-# Define functions #
-#------------------#
-
-# Extend the String Class with new methods {{{2
-class String
-  # Get the "level" of the item (i.e. number of tab characters in front)
-  def hlevel
-	  return count("\t")
+  def load_defaults
+    {
+      type: 'state',
+      direction: 'TB',
+      arrows: true,
+      spline: 'spline',
+      format: 'png',
+      theme: 'default',
+      validate_only: false,
+      watch: false,
+      verbose: false,
+      overwrite: false,
+      clean: false,
+      sep: nil,
+      output: nil,
+      interactive: false
+    }
   end
-  # Return the whole text of the item 
-  # (including Properties but without Conditionals, Operators and References)
-  def htext
-	  return gsub(/\t/, '').			    # Remove tabs
-	    gsub(/\(<.+?>\)/, '').		    # Remove soft links
-	    gsub(/<.+?>/, '').			      # Remove hard links
-	    gsub(/(.+?:) /, '\1' + "\n").	# One Tag per line
-	    gsub("\"", "\'").			        # Escape quotes
-	    sub(/^\s+/, '').			        # Remove white spaces in front
-	    sub(/\s+$/, '').			        # Remove white spaces at the end
-	    sub(/;$/, '')			            # Remove trailing semicolon
-  end
-  # Return an array of the hard references in the item
-  # (remove soft links first)
-  def hrefs_h
-	  return gsub(/\(<.+?>\)/, '').scan(/(?<=<).+?(?=>)/).flatten
-  end
-  # Return an array of the soft references in the item
-  def hrefs_s
-	  return scan(/(?<=\(<).+?(?=>\))/).flatten
-  end
-  # Add one level (tab in front) of the item
-  def haddlevel
-	  return "\t" + self
-  end
-end
 
-# Define a function to increment the children items of a parent {{{2
-def hpluss(i)
-  j = i + 1
-  begin
-	  while $hlines[j].hlevel > $hlines[i].hlevel - 1
-	    $hlines[j] = $hlines[j].haddlevel
-	    j += 1
-	  end
-  rescue
-  end
-end
-
-# Define a function to return the parent {{{2
-def hgetparent(i)
-  lvl = $hlines[i].hlevel
-  until i == -1
-	  if $hlines[i].hlevel < lvl
-	    return i
-	  end
-	  i -= 1
-  end
-  return false
-end
-
-# Define a function to return previous sister {{{2
-def hgetsister(i)
-  lvl = $hlines[i].hlevel
-  i -= 1
-  until i == -1
-	  if $hlines[i].hlevel == lvl
-	    return i
-	  end
-	  i -= 1
-  end
-  return false
-end
-
-# Define function to get next item that is one level up
-def hgetnextup(i)
-  lvl = $hlines[i].hlevel
-  i += 1
-  until i == $hlines.length - 1
-	  if $hlines[i].hlevel < lvl
-	    return i
-	  end
-	  i += 1
-  end
-  return false
-end
-
-#Define function to write the "link from"-item {{{2
-def hmapfrom(i)
-  $dot += "\"#{i.to_s}\""
-  $dot += " -> "
-end
-
-#Define function to write the "link to"-item {{{2
-def hmapto(i)
-  $dot += "\"#{i.to_s}\""
-  if $type == "trans" and $hlines[i-1].htext.match(/\[.+?\]/)
-	  $dot += "[ label=\"Yes\" ]"
-  end
-end
-
-# Function to get the file name to save (and not overwrite) {{{2
-def save_name(base,ext)
-  filename = base + ext
-  if File.exist?(filename)
-	  base += "_1"
-	  filename = base + ext
-	  while File.exist?(base + ext)
-	    base = base.chop + (base[-1].to_i + 1).to_s
-	    filename = base + ext
-	  end
-  end
-  return filename
-end
-
-
-# Main program {{{1
-#------------------#
-# Start of program #
-#------------------#
-
-flname = ARGV[0]
-hl = ARGF.read
-# Remove empty lines
-hl.gsub!(/^$\n/, '')
-
-# Get the base name and extension of the HyperList file or create if STDIN
-if flname
-  extname = File.extname(flname)
-  basename = File.basename(flname,extname)
-else
-  extname = ".hl"
-  basename = "hypergraph"
-end
-
-# Split the HyperList file into an array, one line per array element
-$hlines = hl.split("\n")
-
-# Clean (strictify) {{{2
-#------------------------------------#
-# Clean/"strictify" up the HyperList #
-#------------------------------------#
-# Split the item SEPARATOR+OPERATOR to make the HyperList stricter
-$hlines.collect.with_index do |l,i| 
-if l.match(/; [A-ZÆØÅ]+: *$/) 
-  l.gsub!("; ", "\n" + "\t"*(l.hlevel+1))
-    $hlines[i] = l.split("\n")
-    $hlines.flatten!
-    hpluss(i+1)
-  end
-  l
-end
-# Split the CONDITIONALS to make the HyperList stricter
-$hlines.collect.with_index do |l,i| 
-  if l.match(/\[[_x]\] /)
-  elsif l.match(/\[.+?\] /) 
-    l.gsub!(/(\[.+?\]) /, '\1' + "\n" + "\t"*(l.hlevel+1))
-    $hlines[i] = l.split("\n")
-    $hlines.flatten!
-    hpluss(i+1)
-  end
-  l
-end
-# Split the SEPARATORS to make the HyperList stricter
-$hlines.collect.with_index do |l,i| 
-  if l.match("; ") 
-	  l.gsub!("; ", "\n" + "\t"*(l.hlevel+1))
-	  $hlines[i] = l.split("\n")
-	  $hlines.flatten!
-  end
-  l
-end
-# Handle LITERALS
-flag0 = false
-for i in 0..$hlines.length - 1
-  if $hlines[i].match(/^\t+\\\s*$/) 
-	  flag0 == false ? flag0 = true : flag0 = false
-	  if flag0 == true
-	    lit = $hlines[i] + "\n"
-	    $hlines[i] = nil
-	  else
-	    $hlines[i] = lit + $hlines[i]
-	  end
-	  next
-  end
-  if flag0 == true
-	  lit += $hlines[i] + "\n"
-	  $hlines[i] = nil
-  end
-end
-$hlines.compact!
-
-# Save the "strictified" Hyperlist (if it differs from the original file)
-if $over == false
-  strictfile = save_name(basename + "_strict", extname)
-else
-  strictfile = basename + "_strict" + extname
-end
-hlstrict = $hlines.join("\n")
-if hlstrict != hl
-  begin
-    File.write(strictfile, hlstrict)
-	  puts "Clean/strict HyperList file written: #{strictfile}"
-  rescue
-	  puts "Error! No Clean/strict HyperList file written."
-  end
-  exit if $clean == true 
-else
-  puts "HyperList file already clean/strict, no clean/strict file written."
-end
-
-# Make Literals start and end with "-----" (cleaner and prettier in graphs)
-# Also remove tabs inside a Literal block
-for i in 0..$hlines.length - 1
-  $hlines[i].gsub!("\\", "-----")
-  # Fix hlevel for Literals (remove all tabs after the first level)
-  if $hlines[i].match("-----")
-	  $hlines[i] = $hlines[i].split(/\n\t+/).join("\n")
-  end
-end
-
-# Construct the top of the dot-file {{{2
-$dot = <<DOTSTART
-digraph #{basename} {
-rankdir=#{$rd}
-splines=#{$spline}
-nodesep=#{$sep}
-ranksep=#{$sep}
-overlap=false
-edge [ fontsize=8 len=1 ]
-fixedsize=true
-DOTSTART
-
-$dot += "edge [dir=\"none\"]\n" if not $arrow
-$dot += "node [shape=box]\n" if $type == "trans"
-$dot += "\n"
-
-# List the items with the labels (the relevant part of the line) {{{2
-i = 0
-$hlines.each do |l|
-  if l.htext.empty? 
-	  #$dot += "\"#{i.to_s}\" [width = 0.2 height = 0.2 label = <<FONT POINT-SIZE=\"10\">(#{i.to_s})</FONT>>]\n"
-  else
-    if l.htext.match(/[A-Z]+:/)
-      $dot += "\"#{i.to_s}\" [shape=doubleoctagon width = 0.2 height = 0.2 label = <<FONT POINT-SIZE=\"10\">#{l.htext}</FONT>>]\n"
-    else
-      cl  = l.htext.scan(/\(color=.*?\)/)[0].to_s
-      l.sub!(cl, "")
-      cl = cl[1...-1].to_s
-      cf  = l.htext.scan(/\(fillcolor=.*?\)/)[0].to_s
-      l.sub!(cf, "")
-      cf = cf[1...-1].to_s
-      cf  = cf + ", style=filled" unless cf == ""
-      ct  = l.htext.scan(/\(fontcolor=.*?\)/)[0].to_s
-      l.sub!(ct, "")
-      ct = ct[1...-1].to_s
-      $dot += "\"#{i.to_s}\" [label = \"#{l.htext}\""
-      $dot += ", shape=diamond" if l.htext.match(/\[.+?\]/)
-      $dot += ", shape=tab" if l.htext.match("-----")
-      $dot += ", #{cl}" unless cl == ""
-      $dot += ", #{cf}" unless cf == ""
-      $dot += ", #{ct}" unless ct == ""
-      $dot += "]\n"
-    end
-  end
-  i += 1
-end
-$dot += "\n"
-
-# STATE {{{1
-#------------------------------#
-# Map the HyperList as a State #
-#------------------------------#
-if $type == "state" 
-  for i in 0..$hlines.length - 1
-    j = i + 1
+  def load_config
     begin
-      until $hlines[j].hlevel == $hlines[i].hlevel
-        if $hlines[j].hlevel - $hlines[i].hlevel == 1
-          unless $hlines[j].htext.empty?
-            # Map from and to
-            hmapfrom(i)
-            hmapto(j)
-          end
-          # Map the ORs
-          if $hlines[i].include?("OR:")
-            $dot += " [style=\"dashed\" color=\"black:black\"]"
-          # Map the ANDs
-          elsif $hlines[i].include?("AND:")
-            $dot += " [color=\"black:black\"]"
-          end
-          $dot += "\n"
-        end
-        j += 1
-      end
-    rescue
+      config = JSON.parse(File.read(@config_file), symbolize_names: true)
+      @options.merge!(config)
+      puts "Loaded config from #{@config_file}" if @options[:verbose]
+    rescue JSON::ParserError => e
+      warn "Warning: Invalid config file #{@config_file}: #{e.message}"
     end
-	  # Map hard references
-	  $hlines[i].hrefs_h.each do |r_h|
-      hmapfrom(hgetparent(i))
-      $dot += "\"#{$hlines.index{|s| s =~ /[^<]#{r_h}/}}\" [style=\"dashed\"]"
-      $dot += "\n"
-    end
-    # Map soft references
-    $hlines[i].hrefs_s.each do |r_s|
-      hmapfrom(i)
-      $dot += "\"#{$hlines.index{|s| s =~ /#{r_s}/}}\" [style=\"dotted\"]"
-      $dot += "\n"
-    end
-	  i += 1
   end
-# TRANS {{{1
-#-----------------------------------#
-# Map the HyperList as a Transition #
-#-----------------------------------#
-  elsif $type == "trans" 
-    for i in 0..$hlines.length - 2
-	  # Jump to next if current Item is an operator
-	  # If parent is an Operator, link in a special way
-  if hgetparent(i)
-    par = $hlines[hgetparent(i)].htext 
-      if par.match(/[A-Z]+:/) 
-        hmapfrom(hgetparent(i))
-        hmapto(i)
-        if par.match(/OR:/) 
-          $dot += " [style=\"dashed\" color=\"black:black\"]"
-        elsif par.match(/AND:/) 
-          $dot += " [color=\"black:black\"]"
-        end
-        $dot += "\n"
+
+  def save_config
+    File.write(@config_file, JSON.pretty_generate(@options))
+    puts "Configuration saved to #{@config_file}"
+  end
+
+  def parse_arguments
+    opts = GetoptLong.new(
+      ['--help',        '-h', GetoptLong::NO_ARGUMENT],
+      ['--version',     '-v', GetoptLong::NO_ARGUMENT],
+      ['--state',       '-s', GetoptLong::NO_ARGUMENT],
+      ['--trans',       '-t', GetoptLong::NO_ARGUMENT],
+      ['--down',        '-d', GetoptLong::NO_ARGUMENT],
+      ['--up',          '-u', GetoptLong::NO_ARGUMENT],
+      ['--left',        '-l', GetoptLong::NO_ARGUMENT],
+      ['--right',       '-r', GetoptLong::NO_ARGUMENT],
+      ['--arrow',       '-a', GetoptLong::NO_ARGUMENT],
+      ['--noarrow',     '-n', GetoptLong::NO_ARGUMENT],
+      ['--ortho',       '-o', GetoptLong::NO_ARGUMENT],
+      ['--poly',        '-p', GetoptLong::NO_ARGUMENT],
+      ['--sep',         '-e', GetoptLong::REQUIRED_ARGUMENT],
+      ['--format',      '-f', GetoptLong::REQUIRED_ARGUMENT],
+      ['--theme',       '-T', GetoptLong::REQUIRED_ARGUMENT],
+      ['--output',      '-O', GetoptLong::REQUIRED_ARGUMENT],
+      ['--clean',       '-c', GetoptLong::NO_ARGUMENT],
+      ['--validate',    '-V', GetoptLong::NO_ARGUMENT],
+      ['--watch',       '-w', GetoptLong::NO_ARGUMENT],
+      ['--verbose',     '-b', GetoptLong::NO_ARGUMENT],
+      ['--interactive', '-i', GetoptLong::NO_ARGUMENT],
+      ['--save-config', '-S', GetoptLong::NO_ARGUMENT],
+      ['--overwrite',   '-W', GetoptLong::NO_ARGUMENT]
+    )
+
+    save_config_flag = false
+
+    opts.each do |opt, arg|
+      case opt
+      when '--help'
+        show_help
+        exit 0
+      when '--version'
+        puts "hypergraph version #{VERSION}"
+        exit 0
+      when '--state'
+        @options[:type] = 'state'
+      when '--trans'
+        @options[:type] = 'trans'
+      when '--down'
+        @options[:direction] = 'TB'
+      when '--up'
+        @options[:direction] = 'BT'
+      when '--left'
+        @options[:direction] = 'LR'
+      when '--right'
+        @options[:direction] = 'RL'
+      when '--arrow'
+        @options[:arrows] = true
+      when '--noarrow'
+        @options[:arrows] = false
+      when '--ortho'
+        @options[:spline] = 'ortho'
+      when '--poly'
+        @options[:spline] = 'polyline'
+      when '--sep'
+        @options[:sep] = arg
+      when '--format'
+        @options[:format] = arg
+      when '--theme'
+        @options[:theme] = arg
+      when '--output'
+        @options[:output] = arg
+      when '--clean'
+        @options[:clean] = true
+      when '--validate'
+        @options[:validate_only] = true
+      when '--watch'
+        @options[:watch] = true
+      when '--verbose'
+        @options[:verbose] = true
+      when '--interactive'
+        @options[:interactive] = true
+      when '--save-config'
+        save_config_flag = true
+      when '--overwrite'
+        @options[:overwrite] = true
       end
     end
-    next if $hlines[i].htext.match(/[A-Z]+:/) and $hlines[i+1].hlevel > $hlines[i].hlevel
-	  # Map soft links
-	  $hlines[i].hrefs_s.each do |r_s|
-	    # Link the soft ref if any
-	    hmapfrom(i)
-	    $dot += "\"#{$hlines.index{|s| s =~ /#{r_s}/}}\" [style=\"dotted\"]"
-	    $dot += "\n"
-	  end
-	  # Link to next item outside current OP
-	  parnext = $hlines[hgetparent(i+1)].htext
-	  if parnext.match(/[A-Z]+:/) and $hlines[i+1].hlevel <= $hlines[i].hlevel and hgetnextup(i)
-	    hmapfrom(i)
-	    hmapto(hgetnextup(i+1))
-	    $dot += "\n"
-	    next
-	  end
-	  # Check if previous sister is a Conditional.
-	  # Link to this item if it is
-	  if hgetsister(i)
-	    sis = $hlines[hgetsister(i)].htext
-	    if sis.match(/\[.+?\]/)
-        hmapfrom(hgetsister(i))
-        hmapto(i)
-        $dot += " [ label=\"No\" ]"
-        $dot += "\n"
-	    end
-	  end
-	  # Start normal mapping
-	  # Normal mapping from/to
-	  if $hlines[i].hrefs_h == []
-	    hmapfrom(i)
-	    hmapto(i+1)
-	    $dot += "\n"
-	  # Special mapping if there are hard links
-	  else
-	    # Link to ref
-	    $hlines[i].hrefs_h.each do |r_h|
-        hmapfrom(i)
-        $dot += "\"#{$hlines.index{|s| s =~ /#{r_h}/}}\""
-        $dot += "\n"
-	    end
-	  end
+
+    save_config if save_config_flag
+
+    @input_file = ARGV[0]
+    
+    if !@input_file && !@options[:interactive]
+      show_help
+      exit 1
+    end
+  end
+
+  def show_help
+    puts <<~HELP
+      HyperGraph v#{VERSION} - Enhanced HyperList graphing tool
+      
+      USAGE
+        hypergraph [OPTIONS] filename.hl
+        
+      OPTIONS
+        HyperList type:
+          -s, --state           Treat as State (hierarchy)
+          -t, --trans           Treat as Transition (sequence)
+          
+        Chart direction:
+          -d, --down            Top-to-bottom (DEFAULT)
+          -u, --up              Bottom-to-top
+          -l, --left            Left-to-right
+          -r, --right           Right-to-left
+          
+        Edge type:
+          -a, --arrow           Use directional arrows (DEFAULT)
+          -n, --noarrow         Use non-directional lines
+          -o, --ortho           Use angled lines
+          -p, --poly            Use straight lines
+          
+        Visual options:
+          -e, --sep VALUE       Set node/rank separation
+          -T, --theme THEME     Use theme: default, business, tech, pastel
+          
+        Output options:
+          -f, --format FORMAT   Output format: png (default), jpg, svg, pdf, html
+          -O, --output FILE     Output filename (default: auto-generated)
+          -W, --overwrite       Overwrite existing files
+          
+        Processing options:
+          -c, --clean           Only output clean/strict HyperList
+          -V, --validate        Validate syntax only (no graph output)
+          -w, --watch           Watch file and auto-regenerate on changes
+          -i, --interactive     Interactive mode (enter HyperList via stdin)
+          
+        Other options:
+          -b, --verbose         Verbose output
+          -S, --save-config     Save current options as defaults
+          -h, --help            Show this help
+          -v, --version         Show version
+          
+      THEMES
+        default   - Classic black and white
+        business  - Professional blue theme
+        tech      - Matrix-style green on black
+        pastel    - Soft pastel colors
+        
+      EXAMPLES
+        hypergraph -s -f svg todo.hl
+        hypergraph -t --theme business process.hl
+        hypergraph --validate mylist.hl
+        hypergraph -w -O output.png tasks.hl
+        
+      CONFIG FILE
+        Settings saved in ~/.hypergraphrc
+    HELP
+  end
+
+  def run
+    parse_arguments
+
+    if @options[:interactive]
+      run_interactive
+    elsif @options[:watch]
+      run_watch_mode
+    else
+      process_file(@input_file)
+    end
+  end
+
+  def run_interactive
+    puts "Enter HyperList (Ctrl+D to finish):"
+    content = $stdin.read
+    
+    process_content(content, "interactive")
+  end
+
+  def run_watch_mode
+    require 'listen'
+    
+    puts "Watching #{@input_file} for changes... (Ctrl+C to stop)"
+    
+    # Initial processing
+    process_file(@input_file)
+    
+    dir = File.dirname(@input_file)
+    file = File.basename(@input_file)
+    
+    listener = Listen.to(dir) do |modified, added, removed|
+      if modified.any? { |f| File.basename(f) == file }
+        puts "\nFile changed, regenerating..."
+        process_file(@input_file)
+      end
+    end
+    
+    listener.start
+    sleep
+  rescue LoadError
+    puts "Error: Watch mode requires the 'listen' gem. Install with: gem install listen"
+    exit 1
+  rescue Interrupt
+    puts "\nStopping watch mode."
+  end
+
+  def process_file(filename)
+    unless File.exist?(filename)
+      puts "Error: File '#{filename}' not found"
+      exit 1
+    end
+
+    content = File.read(filename)
+    basename = File.basename(filename, File.extname(filename))
+    
+    process_content(content, basename)
+  end
+
+  def process_content(content, basename)
+    # Parse HyperList
+    parser = HyperGraph::Parser.new(content)
+    parsed_lines = parser.parse
+
+    # Show errors and warnings
+    if parser.errors.any?
+      puts "\n❌ Errors found:"
+      parser.errors.each do |error|
+        puts "  Line #{error[:line]}: #{error[:message]}"
+      end
+      exit 1 if @options[:validate_only]
+    end
+
+    if parser.warnings.any? && @options[:verbose]
+      puts "\n⚠️  Warnings:"
+      parser.warnings.each do |warning|
+        puts "  Line #{warning[:line]}: #{warning[:message]}"
+      end
+    end
+
+    if @options[:validate_only]
+      puts "✅ HyperList validation successful!"
+      puts "  #{parsed_lines.length} items parsed"
+      return
+    end
+
+    # Save clean/strict version
+    if @options[:clean] || !@options[:validate_only]
+      strict_content = generate_strict_hyperlist(parsed_lines)
+      strict_file = get_output_filename(basename, "_strict.hl")
+      
+      if strict_content != content
+        File.write(strict_file, strict_content)
+        puts "Clean HyperList saved: #{strict_file}" if @options[:verbose]
+      end
+      
+      return if @options[:clean]
+    end
+
+    # Generate graph
+    generator = HyperGraph::GraphGenerator.new(parsed_lines, @options)
+    dot_content = generator.generate
+
+    # Save DOT file
+    dot_file = get_output_filename(basename, ".dot")
+    File.write(dot_file, dot_content)
+    puts "DOT file created: #{dot_file}" if @options[:verbose]
+
+    # Generate output based on format
+    output_file = @options[:output] || get_output_filename(basename, ".#{@options[:format]}")
+    
+    case @options[:format]
+    when 'html'
+      generate_html_output(parsed_lines, output_file)
+    else
+      generate_graphviz_output(dot_file, output_file, @options[:format])
+    end
+  end
+
+  def generate_strict_hyperlist(parsed_lines)
+    lines = []
+    
+    parsed_lines.each do |item|
+      line = "\t" * item[:level]
+      
+      # Add type if present
+      if item[:type]
+        line += item[:type] == :state ? "S: " : "T: "
+      end
+      
+      # Add qualifiers
+      item[:qualifiers].each do |qual|
+        line += "[#{qual[:raw]}] "
+      end
+      
+      # Add operators
+      item[:operators].each do |op|
+        line += "#{op}: "
+      end
+      
+      # Add properties
+      item[:properties].each do |key, value|
+        next if ['color', 'fillcolor', 'fontcolor'].include?(key)
+        line += "#{key} = #{value}: "
+      end
+      
+      # Add main text
+      line += item[:display_text]
+      
+      # Add references
+      item[:references][:hard].each do |ref|
+        line += " <#{ref}>"
+      end
+      
+      item[:references][:soft].each do |ref|
+        line += " (<#{ref}>)"
+      end
+      
+      # Add tags
+      item[:tags].each do |tag|
+        line += " ##{tag}"
+      end
+      
+      # Add color properties at end
+      ['color', 'fillcolor', 'fontcolor'].each do |prop|
+        if item[:properties][prop]
+          line += " (#{prop}=#{item[:properties][prop]})"
+        end
+      end
+      
+      lines << line
+    end
+    
+    lines.join("\n")
+  end
+
+  def get_output_filename(basename, extension)
+    if @options[:overwrite]
+      return basename + extension
+    end
+    
+    filename = basename + extension
+    counter = 1
+    
+    while File.exist?(filename)
+      filename = "#{basename}_#{counter}#{extension}"
+      counter += 1
+    end
+    
+    filename
+  end
+
+  def generate_graphviz_output(dot_file, output_file, format)
+    cmd = "dot -T#{format} \"#{dot_file}\" -o \"#{output_file}\""
+    
+    puts "Executing: #{cmd}" if @options[:verbose]
+    
+    success = system(cmd)
+    
+    if success
+      puts "✅ Graph generated: #{output_file}"
+    else
+      puts "❌ Error generating graph. Make sure Graphviz is installed."
+      exit 1
+    end
+  end
+
+  def generate_html_output(parsed_lines, output_file)
+    html_content = generate_interactive_html(parsed_lines)
+    File.write(output_file, html_content)
+    puts "✅ Interactive HTML generated: #{output_file}"
+  end
+
+  def generate_interactive_html(parsed_lines)
+    # This would include D3.js visualization
+    # For now, a simple placeholder
+    <<~HTML
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>HyperGraph Interactive</title>
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+        <style>
+          body { font-family: Arial, sans-serif; }
+          .node { cursor: pointer; }
+          .node circle { fill: #fff; stroke: steelblue; stroke-width: 3px; }
+          .node text { font: 12px sans-serif; }
+          .link { fill: none; stroke: #ccc; stroke-width: 2px; }
+        </style>
+      </head>
+      <body>
+        <h1>HyperGraph Interactive Visualization</h1>
+        <div id="graph"></div>
+        <script>
+          // D3.js visualization code would go here
+          // This is a placeholder for the full implementation
+          document.getElementById('graph').innerHTML = 
+            '<p>Interactive visualization coming soon!</p>' +
+            '<p>Parsed #{parsed_lines.length} HyperList items</p>';
+        </script>
+      </body>
+      </html>
+    HTML
   end
 end
 
-# Close the dot file
-$dot += "}"
-
-# Escape hash signs (#)
-$dot.gsub!("#", '\\\\#')
-
-# Get double quotes back
-$dot.gsub!("'", '\"')
-
-# Save and graph {{{1
-#-----------------------------#
-# Save and convert to a graph #
-#-----------------------------#
-# Save the file, add incremented number if file already exists
-if $over == false
-  dotfile = save_name(basename, ".dot")
-else
-  dotfile = basename + ".dot"
+# Run the CLI
+if __FILE__ == $0
+  cli = HyperGraphCLI.new
+  cli.run
 end
-begin
-  File.write(dotfile, $dot)
-  puts "DOT file written: " + dotfile
-rescue
-  puts "Error! No DOT file written."
-end
-
-# Generate graph
-if $over == false
-  graphfile = save_name(basename, "." + $format)
-else
-  graphfile = basename + "." + $format
-end
-begin
-  `dot -T#{$format} #{dotfile} -o #{graphfile}`
-  puts "Graph file written: " + graphfile
-rescue
-  puts "Error! No graph file written."
-end
-
-# VIM {{{1
-# vim: set sw=2 sts=2 et foldmethod=marker fcs=fold\:\ :
