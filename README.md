@@ -1,4 +1,9 @@
 # HyperGraph
+
+[![License](https://img.shields.io/badge/License-Public%20Domain-brightgreen.svg)](https://unlicense.org/)
+[![GitHub stars](https://img.shields.io/github/stars/isene/hypergraph.svg)](https://github.com/isene/hypergraph/stargazers)
+[![Stay Amazing](https://img.shields.io/badge/Stay-Amazing-blue.svg)](https://isene.org)
+
 Graphing HyperLists - A powerful tool for visualizing hierarchical and process-oriented data structures.
 
 ## Overview
