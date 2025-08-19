@@ -6,6 +6,7 @@
 [![Stay Amazing](https://img.shields.io/badge/Stay-Amazing-blue.svg)](https://isene.org)
 
 <img src="img/hypergraph_logo.svg" align="left" width="150" height="150"> Graphing HyperLists - A powerful tool for visualizing hierarchical and process-oriented data structures.
+<br clear="left"/>
 
 ## Overview
 
