@@ -1,5 +1,9 @@
 # HyperGraph
 
+<p align="center">
+  <img src="hypergraph_logo.svg" alt="HyperGraph" width="300">
+</p>
+
 [![Ruby](https://img.shields.io/badge/Ruby-CC342D?style=flat&logo=ruby&logoColor=white)](https://www.ruby-lang.org/)
 [![License](https://img.shields.io/badge/License-Public%20Domain-brightgreen.svg)](https://unlicense.org/)
 [![GitHub stars](https://img.shields.io/github/stars/isene/hypergraph.svg)](https://github.com/isene/hypergraph/stargazers)

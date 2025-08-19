@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect x="0" y="0" width="200" height="200" rx="15" fill="#f8f8f8"/>
+  
+  <!-- Graph nodes and connections -->
+  <!-- Root node -->
+  <circle cx="100" cy="40" r="15" fill="#CC342D" stroke="#a02825" stroke-width="2"/>
+  
+  <!-- Level 2 nodes -->
+  <circle cx="50" cy="90" r="12" fill="#4a90e2" stroke="#357abd" stroke-width="2"/>
+  <circle cx="100" cy="90" r="12" fill="#4a90e2" stroke="#357abd" stroke-width="2"/>
+  <circle cx="150" cy="90" r="12" fill="#4a90e2" stroke="#357abd" stroke-width="2"/>
+  
+  <!-- Level 3 nodes -->
+  <circle cx="30" cy="140" r="10" fill="#50c878" stroke="#3da862" stroke-width="2"/>
+  <circle cx="70" cy="140" r="10" fill="#50c878" stroke="#3da862" stroke-width="2"/>
+  <circle cx="100" cy="140" r="10" fill="#50c878" stroke="#3da862" stroke-width="2"/>
+  <circle cx="130" cy="140" r="10" fill="#50c878" stroke="#3da862" stroke-width="2"/>
+  <circle cx="170" cy="140" r="10" fill="#50c878" stroke="#3da862" stroke-width="2"/>
+  
+  <!-- Connections -->
+  <g stroke="#666" stroke-width="2" fill="none">
+    <!-- From root to level 2 -->
+    <path d="M 100,55 L 50,75"/>
+    <path d="M 100,55 L 100,75"/>
+    <path d="M 100,55 L 150,75"/>
+    
+    <!-- From level 2 to level 3 -->
+    <path d="M 45,100 L 30,130"/>
+    <path d="M 55,100 L 70,130"/>
+    
+    <path d="M 100,102 L 100,130"/>
+    
+    <path d="M 145,100 L 130,130"/>
+    <path d="M 155,100 L 170,130"/>
+  </g>
+  
+  <!-- HyperList indicators (bullet points) -->
+  <g fill="white" font-family="monospace" font-size="14" font-weight="bold" text-anchor="middle">
+    <text x="100" y="45">●</text>
+    <text x="50" y="95">○</text>
+    <text x="100" y="95">○</text>
+    <text x="150" y="95">○</text>
+    <text x="30" y="145" font-size="12">□</text>
+    <text x="70" y="145" font-size="12">□</text>
+    <text x="100" y="145" font-size="12">□</text>
+    <text x="130" y="145" font-size="12">□</text>
+    <text x="170" y="145" font-size="12">□</text>
+  </g>
+  
+  <!-- Title -->
+  <text x="100" y="180" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#333" text-anchor="middle">HyperGraph</text>
+  
+  <!-- Ruby gem indicator -->
+  <g transform="translate(180, 180) scale(0.3)">
+    <path d="M -20 -10 L 20 -10 L 30 0 L 20 10 L -20 10 L -30 0 Z" fill="#CC342D" opacity="0.7"/>
+  </g>
+</svg>
